@@ -161,29 +161,71 @@ export const TIER_LABEL = {
 export function buildApiHelperInstall(agent) {
 	return `command -v ${agent.script} >/dev/null 2>&1 || { cat > /usr/local/bin/${agent.script} <<'ACODEX_B44_EOF'
 #!/bin/sh
-# acodex-b44 — fala com um Superagent Base44 direto do terminal do AcodeX
-# Uso: acodex-b44 "faça X no meu código"
-# Requer: export ACODEX_BASE44_KEY="sua chave" (Settings > API no editor do agente)
+# acodex-b44 — conversa com um Superagent Base44 direto do terminal do AcodeX.
+# Repo publico: ZERO segredos aqui dentro. Credenciais ficam
+# CRIPTOGRAFADAS (AES-256) no aparelho de cada usuario, com senha pessoal.
+# Uso:
+#   acodex-b44 --setup       grava suas credenciais criptografadas
+#   acodex-b44 "mensagem"    conversa com o SEU agente Base44
 BASE="\${ACODEX_BASE44_URL:-https://app.base44.com/api/agents}"
-AGENT="\${ACODEX_BASE44_AGENT:-}"
-KEY="\${ACODEX_BASE44_KEY:-}"
-if [ -z "\$AGENT" ] || [ -z "\$KEY" ]; then
-  echo "acodex-b44: cada um fala com o SEU próprio agente Base44 (créditos próprios)."
-  echo "  export ACODEX_BASE44_AGENT=<id do seu agente>  # editor Base44 > Settings > API"
-  echo "  export ACODEX_BASE44_KEY=<sua chave de API>"
+STORE="$HOME/.acodex/b44.enc"
+CONVFILE="$HOME/.acodex/b44.conv"
+
+setup() {
+  command -v openssl >/dev/null 2>&1 || { echo "acodex-b44: openssl ausente no sandbox"; exit 1; }
+  mkdir -p "$HOME/.acodex" && chmod 700 "$HOME/.acodex"
+  printf "id do SEU agente Base44: "
+  read AGENT
+  printf "chave de API do agente: "
+  stty -echo 2>/dev/null; read KEY; stty echo 2>/dev/null; printf "\\n"
+  printf "senha p/ criptografar localmente (sua, nunca sai daqui): "
+  stty -echo 2>/dev/null; read PASS; stty echo 2>/dev/null; printf "\\n"
+  printf "%s\\n%s\\n" "$AGENT" "$KEY" | openssl enc -aes-256-cbc -pbkdf2 -salt -out "$STORE" -pass pass:"$PASS" 2>/dev/null \
+    && chmod 600 "$STORE" \
+    && echo "acodex-b44: ok, gravado CRIPTOGRAFADO em $STORE"
+}
+
+[ "$1" = "--setup" ] && { setup; exit 0; }
+
+AGENT=""; KEY=""
+if [ -f "$STORE" ]; then
+  PASS="\${ACODEX_B44_PASS:-}"
+  if [ -z "$PASS" ]; then
+    printf "senha local: "
+    stty -echo 2>/dev/null; read PASS; stty echo 2>/dev/null; printf "\\n"
+  fi
+  PLAIN=$(openssl enc -aes-256-cbc -pbkdf2 -d -in "$STORE" -pass pass:"$PASS" 2>/dev/null)
+  if [ $? -ne 0 ] || [ -z "$PLAIN" ]; then
+    echo "acodex-b44: senha incorreta (ou arquivo corrompido)"
+    exit 1
+  fi
+  AGENT=$(echo "$PLAIN" | sed -n 1p)
+  KEY=$(echo "$PLAIN" | sed -n 2p)
+else
+  AGENT="\${ACODEX_BASE44_AGENT:-}"
+  KEY="\${ACODEX_BASE44_KEY:-}"
+fi
+
+if [ -z "$AGENT" ] || [ -z "$KEY" ]; then
+  echo "acodex-b44: cada um conversa com o SEU proprio agente Base44 (creditos proprios)."
+  echo "  1. acodex-b44 --setup     (grava id+chave criptografados NA SUA maquina)"
+  echo "  2. acodex-b44 \"oi\"        (conversa)"
+  echo "  alternativa: export ACODEX_BASE44_AGENT=... e ACODEX_BASE44_KEY=..."
   exit 1
 fi
-MSG="\$1"; [ -z "\$MSG" ] && { echo "uso: acodex-b44 \\"mensagem para o agente\\""; exit 1; }
+
+MSG="$1"
+[ -z "$MSG" ] && { echo "uso: acodex-b44 \"mensagem\" | acodex-b44 --setup"; exit 1; }
+
 CONV="\${ACODEX_BASE44_CONV:-}"
-if [ -z "\$CONV" ]; then
-  CONV=\$(curl -s -X POST "\$BASE/\$AGENT/conversations" -H "api_key: \$KEY" -H "Content-Type: application/json" -d '{"title":"AcodeX"}' | sed -n 's/.*"id"[[:space:]]*:[[:space:]]*"\\([^"]*\\)".*/\\1/p' | head -n1)
-  if [ -n "\$CONV" ]; then echo "(conversa \$CONV criada; export ACODEX_BASE44_CONV=\$CONV pra continuar na mesma)"; fi
+[ -z "$CONV" ] && [ -f "$CONVFILE" ] && CONV=$(cat "$CONVFILE" 2>/dev/null)
+if [ -z "$CONV" ]; then
+  CONV=$(curl -s -X POST "$BASE/$AGENT/conversations" -H "api_key: $KEY" -H "Content-Type: application/json" -d '{"title":"AcodeX"}' | sed -n 's/.*"id"[[:space:]]*:[[:space:]]*"\\([^"]*\\)".*/\\1/p' | head -n1)
+  [ -n "$CONV" ] && echo "$CONV" > "$CONVFILE" 2>/dev/null
 fi
-if [ -z "\$CONV" ]; then
-  echo "acodex-b44: nao consegui criar/obter conversa — confira a chave e o id do agente"
-  exit 1
-fi
-curl -s -X POST "\$BASE/\$AGENT/conversations/\$CONV/messages" -H "api_key: \$KEY" -H "Content-Type: application/json" -d "{\\"message\\":\\"\$MSG\\"}"
+[ -z "$CONV" ] && { echo "acodex-b44: nao consegui criar/obter conversa — confira suas credenciais"; exit 1; }
+
+curl -s -X POST "$BASE/$AGENT/conversations/$CONV/messages" -H "api_key: $KEY" -H "Content-Type: application/json" -d "{\\"message\\":\\"$MSG\\"}"
 echo ""
 ACODEX_B44_EOF
 chmod +x /usr/local/bin/${agent.script}; }`;
