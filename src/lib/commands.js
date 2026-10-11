@@ -817,6 +817,18 @@ Additional Info:
 			window.toast("Failed to create terminal");
 		}
 	},
+	async "acodex-ai"() {
+		try {
+			const { default: acodexAI } = await import(
+				/* webpackChunkName: "acodexAI" */ "lib/acodexAI"
+			);
+			await acodexAI();
+		} catch (error) {
+			console.error("Failed to launch AcodeX IA agent:", error);
+			window.toast("Failed to launch AI agent");
+		}
+	},
+
 	async "running-processes"() {
 		const { default: RunningProcesses } = await import(
 			"pages/runningProcesses"

@@ -661,6 +661,16 @@ function registerCoreCommands() {
 		},
 	});
 	addCommand({
+		name: "acodexIA:launchAgent",
+		description: "AcodeX IA: Launch AI Agent",
+		readOnly: true,
+		requiresView: false,
+		run() {
+			acode.exec("acodex-ai");
+			return true;
+		},
+	});
+	addCommand({
 		name: "acode:showWelcome",
 		description: "Show Welcome",
 		readOnly: true,
