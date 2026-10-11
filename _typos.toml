@@ -3,6 +3,8 @@ check-filename = true
 
 [files]
 extend-exclude = [
+    "testes",
+    "docs",
     "node_modules",
     "codemirror-lsp-client",
     "www",
@@ -47,6 +49,29 @@ extend-exclude = [
 ]
 
 [default.extend-words]
+# portugues (sem acento) usado no shim web e no build
+indisponivel = "indisponivel"
+navegador = "navegador"
+diretorio = "diretorio"
+diretorios = "diretorios"
+memoria = "memoria"
+ficticios = "ficticios"
+comitar = "comitar"
+nativo = "nativo"
+nativos = "nativos"
+caminho = "caminho"
+caminhos = "caminhos"
+gerado = "gerado"
+gerada = "gerada"
+Plataforma = "Plataforma"
+
+acodex = "acodex"
+# portugues usado nas strings do Acodex AI
+comando = "comando"
+comandos = "comandos"
+Informe = "Informe"
+Limite = "Limite"
+Erro = "Erro"
 # temporary thing to staisfy the linter
 strech = "strech"
 contaienr = "contaienr"
@@ -58,4 +83,51 @@ shft = "shft"
 multline = "multline"
 sav = "sav"
 ist = "ist"
+# "programa" (verbo) é português válido, não o inglês "program"
+programa = "programa"
+# "tema" e "seletor" são português válido, não os ingleses "team"/"selector"
+tema = "tema"
+Gere = "Gere"
+Otimize = "Otimize"
+convencional = "convencional"
+instale = "instale"
+falso = "falso"
+ba = "ba"
+mede = "mede"
+Mede = "Mede"
+responde = "responde"
+sobreviveu = "sobreviveu"
+sondagem = "sondagem"
+caracteres = "caracteres"
+ignora = "ignora"
+sinal = "sinal"
+# portugues usado no aiChat (Superagente) e docs de agentes
+controle = "controle"
+nomes = "nomes"
+erros = "erros"
+algoritmos = "algoritmos"
+vetor = "vetor"
+diagramas = "diagramas"
+diagrama = "diagrama"
+individuais = "individuais"
+autor = "autor"
+Respondendo = "Respondendo"
+componentes = "componentes"
+persistente = "persistente"
+otimizacoes = "otimizacoes"
+memoizacao = "memoizacao"
+sintaxe = "sintaxe"
+seletor = "seletor"
 Hel = "Hel"
+copie = "copie"
+# portugues usado no chat do Acodex AI (nivel OpenCode)
+Analise = "Analise"
+atual = "atual"
+selecao = "selecao"
+busca = "busca"
+temas = "temas"
+Busque = "Busque"
+limpar = "limpar"
+arquivo = "arquivo"
+contexto = "contexto"
+Contexto = "Contexto"

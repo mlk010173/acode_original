@@ -18,6 +18,16 @@
       --bg-color: #20202c;
       /* fallback splash color */
       --test-height: 45px;
+      /* Acodex UI tokens (espelha src/styles/designTokens.scss; o splash
+         renderiza antes do bundle, por isso os valores ficam inline aqui) */
+      --ease-out-soft: cubic-bezier(0.16, 1, 0.3, 1);
+      --ease-in-out-soft: cubic-bezier(0.65, 0, 0.35, 1);
+      --dur-fast: 140ms;
+      --dur-normal: 220ms;
+      --dur-slow: 320ms;
+      --radius-sm: 6px;
+      --radius-lg: 14px;
+      --radius-full: 999px;
     }
 
     body.loading {
@@ -37,18 +47,228 @@
       left: 0;
       inset: 0;
       z-index: 999999;
+      overflow: hidden;
 
-      background-image: url("./logo.svg");
-      background-position: center;
-      background-repeat: no-repeat;
-      background-size: 180px;
-      background-color: var(--bg-color);
+      background-color: #0a0d18;
 
       text-align: center;
 
-      /* Disable any possible fade */
+      /* Disable any possible fade on the splash container itself */
       animation: none !important;
       transition: none !important;
+    }
+
+    /* aurora: dois blobs de luz desfocados flutuando ao fundo */
+    .splash-aurora {
+      position: absolute;
+      inset: -20%;
+      pointer-events: none;
+    }
+
+    .splash-aurora::before,
+    .splash-aurora::after {
+      content: "";
+      position: absolute;
+      width: 70vmin;
+      height: 70vmin;
+      border-radius: 50%;
+      filter: blur(90px);
+      opacity: 0.22;
+      will-change: transform;
+    }
+
+    .splash-aurora::before {
+      top: -8%;
+      left: -12%;
+      background: #22d3ee;
+      animation: splashAuroraA 9s ease-in-out infinite alternate;
+    }
+
+    .splash-aurora::after {
+      bottom: -14%;
+      right: -10%;
+      background: #a855f7;
+      animation: splashAuroraB 11s ease-in-out infinite alternate;
+    }
+
+    @keyframes splashAuroraA {
+      from { transform: translate(0, 0) scale(1); }
+      to { transform: translate(22%, 16%) scale(1.25); }
+    }
+
+    @keyframes splashAuroraB {
+      from { transform: translate(0, 0) scale(1.1); }
+      to { transform: translate(-20%, -12%) scale(0.9); }
+    }
+
+    /* grid synthwave em perspectiva no rodapé */
+    .splash-grid {
+      position: absolute;
+      left: -60%;
+      right: -60%;
+      bottom: -6%;
+      height: 46%;
+      pointer-events: none;
+      background-image:
+        repeating-linear-gradient(to right, rgba(34, 211, 238, 0.13) 0 1px, transparent 1px 44px),
+        repeating-linear-gradient(to bottom, rgba(168, 85, 247, 0.11) 0 1px, transparent 1px 44px);
+      transform: perspective(340px) rotateX(62deg);
+      transform-origin: 50% 0;
+      animation: splashGridScroll 1.6s linear infinite;
+      -webkit-mask-image: linear-gradient(to bottom, transparent, #000 22%);
+      mask-image: linear-gradient(to bottom, transparent, #000 22%);
+    }
+
+    @keyframes splashGridScroll {
+      from { background-position: 0 0, 0 0; }
+      to { background-position: 0 44px, 0 44px; }
+    }
+
+    /* scanlines CRT sutis por cima de tudo */
+    .splash-scanlines {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: repeating-linear-gradient(
+        to bottom,
+        rgba(255, 255, 255, 0.028) 0 1px,
+        transparent 1px 3px
+      );
+    }
+
+    /* anel de energia neon girando atrás do logo */
+    .splash-ring {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 224px;
+      height: 224px;
+      margin-top: -124px;
+      margin-left: -112px;
+      border-radius: 50%;
+      background: conic-gradient(
+        from 0deg,
+        transparent 0deg,
+        rgba(34, 211, 238, 0.9) 52deg,
+        transparent 118deg,
+        transparent 200deg,
+        rgba(168, 85, 247, 0.75) 258deg,
+        transparent 322deg
+      );
+      -webkit-mask-image: radial-gradient(
+        circle,
+        transparent 0 61%,
+        #000 62% 70%,
+        transparent 71% 100%
+      );
+      mask-image: radial-gradient(
+        circle,
+        transparent 0 61%,
+        #000 62% 70%,
+        transparent 71% 100%
+      );
+      animation: splashRingSpin 2.8s linear infinite;
+      will-change: transform;
+    }
+
+    @keyframes splashRingSpin {
+      to { transform: rotate(360deg); }
+    }
+
+    #splash-logo {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 180px;
+      height: 180px;
+      margin-top: -100px;
+      margin-left: -90px;
+
+      background-image: url("./splash-logo.png");
+      background-position: center;
+      background-repeat: no-repeat;
+      background-size: 148px;
+
+      animation: splashEnter var(--dur-slow) var(--ease-out-soft) both,
+        splashFloat 3.4s var(--ease-in-out-soft) var(--dur-slow) infinite,
+        splashLogoGlow 2.2s var(--ease-in-out-soft) infinite;
+    }
+
+    /* glow neon pulsante no logo (efeito hologram) */
+    @keyframes splashLogoGlow {
+      0%,
+      100% {
+        filter: drop-shadow(0 0 10px rgba(34, 211, 238, 0.35))
+          drop-shadow(0 0 30px rgba(34, 211, 238, 0.16))
+          drop-shadow(0 0 60px rgba(168, 85, 247, 0.1));
+      }
+      50% {
+        filter: drop-shadow(0 0 22px rgba(34, 211, 238, 0.75))
+          drop-shadow(0 0 60px rgba(34, 211, 238, 0.35))
+          drop-shadow(0 0 110px rgba(168, 85, 247, 0.22));
+      }
+    }
+
+    @keyframes splashEnter {
+      from {
+        opacity: 0;
+        transform: scale(0.78);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+
+    @keyframes splashFloat {
+      0%,
+      100% {
+        transform: scale(0.985) translateY(0);
+      }
+      50% {
+        transform: scale(1) translateY(-5px);
+      }
+    }
+
+    .splash-bar {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 170px;
+      height: 3px;
+      margin-top: 76px;
+      margin-left: -85px;
+      border-radius: var(--radius-full);
+      background: rgba(255, 255, 255, 0.1);
+      overflow: hidden;
+      box-shadow: 0 0 12px rgba(34, 211, 238, 0.25);
+    }
+
+    .splash-bar-fill {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: -40%;
+      width: 40%;
+      border-radius: var(--radius-full);
+      background: linear-gradient(
+        90deg,
+        transparent,
+        #22d3ee 35%,
+        #a855f7 65%,
+        transparent
+      );
+      filter: blur(0.4px);
+      animation: splashBar 1.4s var(--ease-in-out-soft) infinite;
+    }
+
+    @keyframes splashBar {
+      0% {
+        left: -40%;
+      }
+      100% {
+        left: 100%;
+      }
     }
 
     .splash-version {
@@ -56,24 +276,58 @@
       top: 15px;
       left: 15px;
 
-      color: rgb(209, 209, 209);
-      font-size: 0.8rem;
+      color: rgba(255, 255, 255, 0.45);
+      font-size: 0.75rem;
       white-space: pre;
       font-family: monospace;
       text-align: left;
+      background: rgba(255, 255, 255, 0.07);
+      border: 1px solid rgba(255, 255, 255, 0.09);
+      border-radius: var(--radius-full);
+      padding: 4px 12px;
     }
 
     .splash-message {
       position: absolute;
-      bottom: 15px;
+      bottom: 28px;
       left: 50%;
       transform: translateX(-50%);
-      color: rgb(209, 209, 209);
-      font-size: 1rem;
-      width: 90vw;
+      color: rgba(255, 255, 255, 0.6);
+      font-size: 0.85rem;
+      line-height: 1.4;
+      width: 86vw;
       text-align: center;
+      animation: splashMsgFade var(--dur-normal) var(--ease-out-soft) both;
     }
-  </style>
+
+    @keyframes splashMsgFade {
+      from {
+        opacity: 0;
+        transform: translate(-50%, 6px);
+      }
+      to {
+        opacity: 1;
+        transform: translate(-50%, 0);
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      #splash-logo,
+      .splash-ring,
+      .splash-grid,
+      .splash-aurora::before,
+      .splash-aurora::after,
+      .splash-bar-fill,
+      .splash-message {
+        animation: none;
+      }
+
+      .splash-bar-fill {
+        left: 30%;
+      }
+    }
+
+</style>
 
   <!-- Set theme color BEFORE UI renders -->
   <script>
@@ -125,7 +379,7 @@
 
       if (!hasES6) {
         setStartupMessage(
-          "Acode requires a modern browser. Please update Android System WebView or Chrome."
+          "Acodex requires a modern browser. Please update Android System WebView or Chrome."
         );
       }
 
@@ -137,7 +391,7 @@
         window.__ACODE_WEBVIEW_MAJOR__ < MIN_WEBVIEW_MAJOR
       ) {
         setStartupMessage(
-          "Your Android System WebView is old. Update Android System WebView or Chrome if Acode stays on this screen."
+          "Your Android System WebView is old. Update Android System WebView or Chrome if Acodex stays on this screen."
         );
       }
 
@@ -157,9 +411,9 @@
         var message = event && event.message ? event.message : "Startup error";
         setStartupMessage(
           isStorageError(event && event.error)
-            ? "Acode failed to start: storage is unavailable. Try restarting your device, or clearing the app data. " +
+            ? "Acodex failed to start: storage is unavailable. Try restarting your device, or clearing the app data. " +
                 message
-            : "Acode failed to start. Update Android System WebView or Chrome. " +
+            : "Acodex failed to start. Update Android System WebView or Chrome. " +
                 message
         );
       }
@@ -171,9 +425,9 @@
           reason && reason.message ? reason.message : "Startup promise failed";
         setStartupMessage(
           isStorageError(reason)
-            ? "Acode failed to start: storage is unavailable. Try restarting your device, or clearing the app data. " +
+            ? "Acodex failed to start: storage is unavailable. Try restarting your device, or clearing the app data. " +
                 message
-            : "Acode failed to start. Update Android System WebView or Chrome. " +
+            : "Acodex failed to start. Update Android System WebView or Chrome. " +
                 message
         );
       }
@@ -188,11 +442,17 @@
 
   <script src="./build/boot.js"></script>
 
-  <title>Acode</title>
+  <title>Acodex</title>
 </head>
 
 <body class="loading" data-version="" data-small-msg="">
   <div id="splash">
+    <div class="splash-aurora"></div>
+    <div class="splash-grid"></div>
+    <div class="splash-ring"></div>
+    <div id="splash-logo"></div>
+    <div class="splash-scanlines"></div>
+    <div class="splash-bar"><div class="splash-bar-fill"></div></div>
     <div class="splash-version"></div>
     <div class="splash-message"></div>
   </div>

@@ -1,7 +1,11 @@
 import { getResolvedKeyBindings } from "cm/commandRegistry";
-import logoSrc from "components/logo/logo.png?inline";
+import logoSrc from "components/logo/acodex-logo.png?inline";
 import config from "lib/config";
 import EditorFile from "lib/editorFile";
+import aiChatLogo from "pages/welcome/brands/acodex.png?inline";
+import voiceLogo from "pages/welcome/brands/mic.png?inline";
+import pythonLogo from "pages/welcome/brands/python.png?inline";
+import sandboxLogo from "pages/welcome/brands/sandbox.png?inline";
 
 /**
  * Opens the Welcome tab as an EditorFile page
@@ -44,10 +48,37 @@ function createWelcomeContent() {
 		<div id="welcome-tab" className="welcome-page scroll">
 			{/* Hero Section */}
 			<header className="welcome-header">
-				<img className="logo" src={logoSrc} width="48" height="48" alt="" />
-				<div className="welcome-header-text">
-					<h1>Welcome to Acode</h1>
-					<p className="tagline">Powerful code editor for Android</p>
+				<div className="logo-wrap">
+					<div className="logo-glow" aria-hidden="true" />
+					<img
+						className="logo"
+						src={logoSrc}
+						width="72"
+						height="72"
+						alt="Acodex"
+					/>
+				</div>
+				<h1 className="title-gradient">
+					Welcome to <span>AcodexAI</span>
+				</h1>
+				<p className="tagline">IDE • IA • VOICE • SANDBOX</p>
+				<div className="power-chips">
+					<span className="chip">
+						<img src={aiChatLogo} alt="" />
+						AI Chat
+					</span>
+					<span className="chip">
+						<img src={voiceLogo} alt="" />
+						Voz
+					</span>
+					<span className="chip">
+						<img src={pythonLogo} alt="" />
+						Python
+					</span>
+					<span className="chip">
+						<img src={sandboxLogo} alt="" />
+						Sandbox
+					</span>
 				</div>
 			</header>
 
@@ -83,6 +114,11 @@ function createWelcomeContent() {
 						icon="historyrestore"
 						label={strings.recent}
 						onClick={() => acode.exec("recent")}
+					/>
+					<ActionRow
+						icon="play_arrow"
+						label="Sandbox Terminal"
+						onClick={() => acode.exec("open-sandbox")}
 					/>
 					<ActionRow
 						icon="tune"

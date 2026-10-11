@@ -9,6 +9,40 @@ const Terminal = {
      * @returns {Promise<boolean>} - Returns true if installation completes with exit code 0, void if not installing
      */
     async startAxs(installing = false, logger = console.log, err_logger = console.error,failsafe = false) {
+        // Guard against callers (core terminal UI, or third-party plugins such as
+        // AI copilots that shell out to run `npm`/`node`) invoking startAxs before
+        // the Alpine sandbox has ever been provisioned on this device. Without this
+        // check, init-sandbox.sh does not exist yet and the caller sees a confusing
+        // "No such file or directory" + unknown node/npm versions instead of the
+        // sandbox being set up automatically.
+        if (!this._provisioning && !(await this.isInstalled())) {
+            if (!installing) {
+                const message = "Linux sandbox is not installed yet. Open Terminal once (or let the plugin install it) before running commands.";
+                err_logger(message);
+                throw new Error(message);
+            }
+
+            // install() finishes by calling startAxs(true, ...) itself to apply the
+            // final sandbox configuration, at a point where isInstalled() is still
+            // false (the .configured marker is written by init-sandbox.sh during
+            // that very call). The _provisioning flag prevents that internal call
+            // from re-entering install() and recursing forever.
+            logger("Linux sandbox not found, installing it first...");
+            this._provisioning = true;
+            let installed;
+            try {
+                installed = await this.install(logger, err_logger);
+            } finally {
+                this._provisioning = false;
+            }
+            if (!installed) {
+                const message = this.lastInstallError || "Failed to install the Linux sandbox required to run this command.";
+                err_logger(message);
+                return false;
+            }
+            return true;
+        }
+
         const filesDir = await new Promise((resolve, reject) => {
             system.getFilesDir(resolve, reject);
         });
@@ -307,16 +341,16 @@ const Terminal = {
                 architecture.alpineFilename
             );
 
-                logger("⬇️  Downloading sandbox filesystem...");
+                logger("Downloading sandbox filesystem...");
                 await downloadFile(alpineUrl, cordova.file.dataDirectory + "alpine.tar.gz", "Sandbox filesystem");
 
-                logger("⬇️  Downloading axs...");
+                logger("Downloading axs...");
                 await downloadFile(axsUrl, cordova.file.dataDirectory + "axs", "AXS");
 
-                logger("⬇️  Downloading compatibility layer...");
+                logger("Downloading compatibility layer...");
                 await downloadFile(prootUrl, cordova.file.dataDirectory + "libproot-xed.so", "Compatibility layer");
 
-                logger("⬇️  Downloading supporting library...");
+                logger("Downloading supporting library...");
                 await downloadFile(libTalloc, cordova.file.dataDirectory + "libtalloc.so.2", "Supporting library");
 
                 if (libproot != null) {
@@ -327,9 +361,9 @@ const Terminal = {
                     await downloadFile(libproot32, cordova.file.dataDirectory + "libproot32.so", "32-bit proot loader");
                 }
 
-                logger("✅  All downloads completed");
+                logger(" All downloads completed");
             }else{
-                logger("📦  Extracting assets...");
+                logger(" Extracting assets...");
                 await new Promise((resolve, reject) => {
                     system.extractAsset(`alpine_assets/${architecture.libraryDirectory}/alpine.rootfs`, `${filesDir}/alpine.tar.gz`, resolve, (e)=>{
                         console.error(`Failed to extract alpine.tar.gz: ${formatError(e)}`);
@@ -345,7 +379,7 @@ const Terminal = {
             }
            
 
-            logger("📁  Setting up directories...");
+            logger(" Setting up directories...");
 
             await ensureDir(`${filesDir}/.downloaded`);
 
@@ -354,10 +388,10 @@ const Terminal = {
             await ensureDir(alpineDir);
 
 
-            logger("📦  Extracting sandbox filesystem...");
+            logger(" Extracting sandbox filesystem...");
             await Executor.execute(`tar --no-same-owner -xf ${filesDir}/alpine.tar.gz -C ${alpineDir}`);
 
-            logger("⚙️  Applying basic configuration...");
+            logger(" Applying basic configuration...");
             await writeText(`${alpineDir}/etc/resolv.conf`, `nameserver 8.8.4.4 \nnameserver 8.8.8.8`);
 
             const rmWrapper = await readAsset("rm-wrapper.sh");
@@ -365,10 +399,10 @@ const Terminal = {
             await writeText(`${alpineDir}/bin/rm`, rmWrapper);
             await setExec(`${alpineDir}/bin/rm`, true);
 
-            logger("✅  Extraction complete");
+            logger(" Extraction complete");
             await ensureDir(`${filesDir}/.extracted`);
 
-            logger("⚙️  Updating sandbox enviroment...");
+            logger(" Updating sandbox enviroment...");
             const installResult = await this.startAxs(true, logger, err_logger);
             if (!installResult) {
                 throw new Error(this.lastInstallError || "Sandbox configuration failed.");

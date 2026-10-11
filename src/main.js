@@ -8,8 +8,10 @@ import "styles/overrideAceStyle.scss";
 import "styles/wideScreen.scss";
 // Editor tabs use a shadow root that only links build/main.css.
 import "pages/welcome/welcome.scss";
+import "pages/sandbox/sandbox.scss";
 
 import "lib/polyfill";
+import { initWebAnalytics } from "lib/webAnalytics";
 import "cm/supportedModes";
 import "components/WebComponents";
 import "handlers/editorWorkaround";
@@ -40,6 +42,7 @@ import actionStack from "lib/actionStack";
 import adRewards from "lib/adRewards";
 import ajax from "lib/ajax";
 import applySettings from "lib/applySettings";
+import initBreadcrumbs from "lib/breadcrumbs";
 import checkFiles from "lib/checkFiles";
 import { canSaveFile } from "lib/commands";
 import config from "lib/config";
@@ -52,7 +55,9 @@ import lang from "lib/lang";
 import loadPlugins from "lib/loadPlugins";
 import Logger from "lib/logger";
 import notificationManager from "lib/notificationManager";
+import showOnboarding from "lib/onboarding";
 import openFolder, { addedFolder } from "lib/openFolder";
+import registerExtendedCommands from "lib/registerExtendedCommands";
 import { registerPrettierFormatter } from "lib/registerPrettierFormatter";
 import restoreFiles from "lib/restoreFiles";
 import settings from "lib/settings";
@@ -165,6 +170,9 @@ async function onDeviceReady() {
 	window.log = logger.log.bind(logger);
 
 	config.HAS_PRO = !isFreePackage;
+
+	// Vercel Web Analytics + Speed Insights (apenas no deploy web)
+	initWebAnalytics();
 
 	// Capture synchronous errors
 	window.addEventListener("error", (event) => {
@@ -518,7 +526,7 @@ function showSftpMigrationReport({
 
 	alert(
 		"Some SFTP connections were removed",
-		`Acode could not move ${failures.length} saved SFTP connection${failures.length === 1 ? "" : "s"} into encrypted storage. The affected connection data and ${removedReferences} saved reference${removedReferences === 1 ? " were" : "s were"} removed so Acode could start safely. Please add the connection${failures.length === 1 ? "" : "s"} again.<br><br>${details}${recoveryMessage}`,
+		`Acodex could not move ${failures.length} saved SFTP connection${failures.length === 1 ? "" : "s"} into encrypted storage. The affected connection data and ${removedReferences} saved reference${removedReferences === 1 ? " were" : "s were"} removed so Acodex could start safely. Please add the connection${failures.length === 1 ? "" : "s"} again.<br><br>${details}${recoveryMessage}`,
 	);
 }
 
@@ -645,7 +653,7 @@ async function loadApp() {
 	);
 	const $header = tile({
 		type: "header",
-		text: "Acode",
+		text: "Acodex",
 		lead: $navToggler,
 		tail: $menuToggler,
 	});
@@ -712,6 +720,9 @@ async function loadApp() {
 	//#region Add event listeners
 	initModes();
 	quickToolsInit();
+	registerExtendedCommands({ toast: window.toast });
+	initBreadcrumbs($header);
+	showOnboarding();
 	editorManager.on("switch-file", initIconTooltips());
 	sidebarApps.init($sidebar);
 	await sidebarApps.loadApps();
