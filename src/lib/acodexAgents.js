@@ -37,7 +37,7 @@ export const AGENT_REGISTRY = {
 		status: "ativo",
 		script: "acodex-b44",
 		description: "Superagent da Base44 (sandbox, git, navegador, automações)",
-		note: "requer ACODEX_BASE44_KEY (grátis com créditos, planos pagos depois)",
+		note: "cada usuário configura o PRÓPRIO agente e créditos — nada embutido no app",
 	},
 	"gemini-cli": {
 		name: "Gemini CLI",
@@ -75,6 +75,53 @@ export const AGENT_REGISTRY = {
 		install:
 			"apk add -q python3 py3-pip >/dev/null 2>&1; python3 -m pip install --break-system-packages aider-chat",
 		description: "AI pair programming open-source (Python)",
+	},
+		"ollama": {
+		name: "Ollama",
+		kind: "cli",
+		tier: "free",
+		status: "ativo",
+		bin: "ollama",
+		install: "curl -fsSL https://ollama.com/install.sh | sh",
+		description: "Modelos de IA locais, open-source e offline",
+	},
+	"qwen-code": {
+		name: "Qwen Code",
+		kind: "cli",
+		tier: "freemium",
+		status: "ativo",
+		bin: "qwen",
+		install: "npm install -g @qwen-code/qwen-code@latest",
+		description: "Agente open-source da Alibaba (tier grátis generoso)",
+	},
+	"goose": {
+		name: "Goose",
+		kind: "cli",
+		tier: "free",
+		status: "ativo",
+		bin: "goose",
+		install:
+			"curl -fsSL https://github.com/block/goose/releases/download/stable/download_cli.sh | bash",
+		description: "Agente open-source da Block",
+	},
+	"openhands": {
+		name: "OpenHands",
+		kind: "cli",
+		tier: "free",
+		status: "ativo",
+		bin: "openhands",
+		install:
+			"apk add -q python3 py3-pip >/dev/null 2>&1; python3 -m pip install --break-system-packages openhands-ai",
+		description: "Agente autônomo open-source completo (Python)",
+	},
+	"amp": {
+		name: "Amp",
+		kind: "cli",
+		tier: "freemium",
+		status: "ativo",
+		bin: "amp",
+		install: "npm install -g @sourcegraph/amp@latest",
+		description: "Agente da Sourcegraph (tem tier grátis)",
 	},
 	"claude-code": {
 		name: "Claude Code",
@@ -118,10 +165,12 @@ export function buildApiHelperInstall(agent) {
 # Uso: acodex-b44 "faça X no meu código"
 # Requer: export ACODEX_BASE44_KEY="sua chave" (Settings > API no editor do agente)
 BASE="\${ACODEX_BASE44_URL:-https://app.base44.com/api/agents}"
-AGENT="\${ACODEX_BASE44_AGENT:-6ac03c4c0177787eb59621ed}"
+AGENT="\${ACODEX_BASE44_AGENT:-}"
 KEY="\${ACODEX_BASE44_KEY:-}"
-if [ -z "\$KEY" ]; then
-  echo "acodex-b44: defina ACODEX_BASE44_KEY (chave de API do seu agente Base44)"
+if [ -z "\$AGENT" ] || [ -z "\$KEY" ]; then
+  echo "acodex-b44: cada um fala com o SEU próprio agente Base44 (créditos próprios)."
+  echo "  export ACODEX_BASE44_AGENT=<id do seu agente>  # editor Base44 > Settings > API"
+  echo "  export ACODEX_BASE44_KEY=<sua chave de API>"
   exit 1
 fi
 MSG="\$1"; [ -z "\$MSG" ] && { echo "uso: acodex-b44 \\"mensagem para o agente\\""; exit 1; }
