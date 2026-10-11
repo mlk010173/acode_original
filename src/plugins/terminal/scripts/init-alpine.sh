@@ -354,6 +354,10 @@ fi
 # while the initrc only sources it once (idempotent via the marker below).
 cat > "$PREFIX/alpine/acodex-ia-guard.sh" <<'GUARD'
 # ACODEX_IA_GUARD — AcodeX IA safety layer.
+# Copyright (c) 2026 mlk010173. Licensed under the AcodeX IA License
+# (see LICENSE-ACODEX-IA in the repository root). Personal and
+# non-commercial use allowed with attribution; anything else requires
+# prior written permission from the copyright holder.
 # Asks for confirmation ONLY before critical commands run;
 # every other command executes normally.
 

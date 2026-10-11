@@ -1,0 +1,37 @@
+AcodeX IA License
+Copyright (c) 2026 mlk010173
+
+The AcodeX IA module and its components (listed below) are licensed under
+this license, separate from the MIT license that governs the rest of this
+repository.
+
+Covered files:
+  - src/lib/acodexAI.js
+  - the AcodeX IA guard block in src/plugins/terminal/scripts/init-alpine.sh
+    (delimited by the "ACODEX_IA_GUARD" markers)
+  - the "acodex-ai" command entry in src/lib/commands.js
+  - the "acodexIA:launchAgent" entry in src/cm/commandRegistry.js
+  - the "acodexIA" entry in src/lib/keyBindings.js
+
+Terms:
+
+1. Permission is granted to use the Covered Files for personal and
+   non-commercial purposes, provided that this license notice and the
+   copyright notice above are preserved.
+
+2. Any other use, copying, modification, redistribution, sublicensing,
+   or inclusion of the Covered Files (or substantial portions of them)
+   in another project, product, or service — including any commercial
+   use — requires prior written permission from the copyright holder.
+
+3. Cloning, downloading, or reading the source code of a public
+   repository for personal study is permitted. Using the Covered Files
+   beyond the terms above without permission is a violation of this
+   license.
+
+4. Requests for permission may be sent through the copyright holder's
+   GitHub account (mlk010173).
+
+THE COVERED FILES ARE PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND.
+IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES,
+OR OTHER LIABILITY ARISING FROM THE USE OF THE COVERED FILES.

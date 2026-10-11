@@ -411,6 +411,7 @@ const APP_BINDING_CONFIG = [
 		action: "new-terminal",
 		readOnly: true,
 	},
+	// AcodeX IA (c) 2026 mlk010173 — AcodeX IA License, see LICENSE-ACODEX-IA.
 	{
 		name: "acodexIA",
 		description: "AcodeX IA: Launch AI agent",

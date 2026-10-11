@@ -817,6 +817,7 @@ Additional Info:
 			window.toast("Failed to create terminal");
 		}
 	},
+	// AcodeX IA (c) 2026 mlk010173 — AcodeX IA License, see LICENSE-ACODEX-IA.
 	async "acodex-ai"() {
 		try {
 			const { default: acodexAI } = await import(

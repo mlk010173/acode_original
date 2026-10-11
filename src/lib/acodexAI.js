@@ -1,3 +1,11 @@
+/**
+ * AcodeX IA — Copyright (c) 2026 mlk010173.
+ * Licensed under the AcodeX IA License — see LICENSE-ACODEX-IA.
+ * Personal and non-commercial use is allowed with attribution.
+ * Any other use, copying, modification or distribution requires
+ * prior written permission from the copyright holder.
+ */
+
 import select from "dialogs/select";
 
 /**
