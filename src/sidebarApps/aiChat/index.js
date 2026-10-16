@@ -1,25 +1,38 @@
 import "./style.scss";
 import "./modelSwitcher.scss";
+import toast from "components/toast";
 import confirm from "dialogs/confirm";
 import multiPrompt from "dialogs/multiPrompt";
 import { runAgent } from "lib/acodexAi/agent";
 import { BUILTIN_SKILLS } from "lib/acodexAi/builtinSkills";
-import { validateAiConfig, withBuiltinKey } from "lib/acodexAi/client";
+import {
+	createChatCompletion,
+	validateAiConfig,
+	withBuiltinKey,
+} from "lib/acodexAi/client";
+import { registerDataTools } from "lib/acodexAi/dataTools";
+import { createMcpClient } from "lib/acodexAi/mcp";
+import { getProviderForBaseUrl } from "lib/acodexAi/models";
 import { createSkillRegistry } from "lib/acodexAi/skills";
 import { createToolRegistry } from "lib/acodexAi/tools";
 import commands from "lib/commands";
+import { ensureDevicePermission } from "lib/devicePermissions";
 import EditorFile from "lib/editorFile";
 import openFile from "lib/openFile";
 import appSettings from "lib/settings";
-import { createActivityLog } from "./activityLog";
 import { upgradeAssistantMessage } from "./advancedRender";
+import { createAgentActivity } from "./agentActivity";
 import { renderAssistantMessage } from "./format";
+import { createAiHome, createIcon } from "./homeScreen";
 import {
 	buildVisionContent,
 	createImageInput,
 	DEFAULT_IMAGE_PROMPT,
 } from "./imageInput";
 import { createModelSwitcher } from "./modelSwitcher";
+import { describePowerModeChange, getPowerMode } from "./powerMode";
+import { createTokenMeter, createTokenMeterView } from "./tokenMeter";
+import { createAgentTracer, createTraceBus } from "./traceEvents";
 import { createVoiceInput, isVoiceSupported } from "./voiceInput";
 
 const TOOL_LABELS = {
@@ -38,16 +51,38 @@ const TOOL_LABELS = {
 	load_skill: "Carregando skill",
 };
 
-const SUGGESTIONS = [
-	"Explique o arquivo aberto",
-	"Encontre bugs neste código",
-	"Refatore a seleção atual",
-	"Gere casos de teste para o arquivo",
-	"Otimize a performance do código",
-	"Audite a segurança deste código",
-];
-
 const FENCE = "```";
+
+/** Limite de caracteres da mensagem (mostrado no contador do composer). */
+const MAX_INPUT = 2000;
+
+/** @type {HTMLElement|undefined} */
+let $counter;
+/** @type {HTMLElement|undefined} */
+let $composerProvider;
+/** @type {HTMLElement|undefined} */
+let $composerProviderName;
+let tokenMeter = null;
+let tokenMeterView = null;
+
+function updateCounter() {
+	if (!$counter) return;
+	const length = $input?.value?.length ?? 0;
+	$counter.textContent = `${length}/${MAX_INPUT}`;
+	$counter.classList.toggle("near-limit", length > MAX_INPUT * 0.9);
+}
+
+/** Nome curto do provedor ativo (ex.: "Vercel AI"). */
+function getProviderLabel() {
+	const provider = getProviderForBaseUrl(getConfig().baseUrl);
+	return provider?.label || "IA";
+}
+
+function updateComposerProvider() {
+	if ($composerProviderName) {
+		$composerProviderName.textContent = getProviderLabel();
+	}
+}
 
 const SLASH_COMMANDS = [
 	{ cmd: "/arquivo", desc: "Envia o arquivo atual como contexto" },
@@ -85,6 +120,16 @@ const TASK_PROMPTS = {
 		"Faça uma auditoria de segurança neste código: injeção (SQL/command), XSS, path traversal, exposição de dados sensíveis e chaves, validação de entrada ausente e dependências inseguras. Relate cada item com severidade, vetor de ataque e mitigação com código.",
 };
 
+/** Ferramentas que alteram arquivos de verdade (geram evento file_change). */
+const FILE_CHANGE_TOOLS = {
+	replace_active_file: "modified",
+	insert_text: "modified",
+	create_file: "created",
+};
+
+/** Último texto enviado, para "Tentar novamente" depois de uma falha. */
+let lastSentText = "";
+
 const CONFIG_ERRORS = {
 	"missing-api-key": "Configure sua chave de API para usar o Acodex AI.",
 	"missing-model": "Informe um modelo nas configurações.",
@@ -106,6 +151,11 @@ let liveBuffer = "";
 let $hints;
 /** @type {{ $toggle: HTMLElement, open: () => void }|null} */
 let switcherApi = null;
+
+/** @type {ReturnType<typeof createMcpClient>|null} */
+let mcpClient = null;
+/** @type {string[]} tools MCP registradas no momento */
+let mcpToolNames = [];
 /** @type {HTMLElement} */
 let $messages;
 /** @type {HTMLTextAreaElement} */
@@ -145,7 +195,7 @@ async function initSkills() {
 	skillCatalog = registrySkills.catalogPrompt;
 }
 
-const registry = createToolRegistry({
+const registryDeps = {
 	getActiveFile: () => editorManager.activeFile,
 	getOpenFiles: () => editorManager.files,
 	getEditor: () =>
@@ -157,7 +207,10 @@ const registry = createToolRegistry({
 	listCommands: () => Object.keys(commands),
 	confirm: (title, message) => confirm(title, message),
 	skills: skillHolder,
-});
+};
+const registry = createToolRegistry(registryDeps);
+// ferramentas opensource de dados: Papa Parse, JSONata, sql.js, Fuse.js, js-yaml
+registerDataTools(registry, registryDeps);
 
 function getConfig() {
 	const { aiBaseUrl, aiApiKey, aiModel } = appSettings.value;
@@ -179,12 +232,14 @@ function initApp(el) {
 		<textarea
 			className="ai-input"
 			rows="2"
-			placeholder="Pergunte ou peça uma tarefa..."
+			placeholder="Digite sua mensagem..."
+			maxlength={MAX_INPUT}
 			aria-label="Mensagem para o Acodex AI"
 			onkeydown={onKeyDown}
 			oninput={() => {
 				autoResize();
 				updateHints();
+				updateCounter();
 			}}
 		/>
 	);
@@ -195,7 +250,7 @@ function initApp(el) {
 			aria-label="Enviar"
 			onclick={onSendClick}
 		>
-			<span className="icon arrow_upward" />
+			{createIcon("send", 20)}
 		</button>
 	);
 	if (isVoiceSupported()) {
@@ -217,6 +272,7 @@ function initApp(el) {
 		);
 	}
 
+	const previousMode = () => appSettings.value.aiPowerMode;
 	const switcher = createModelSwitcher({
 		getConfig,
 		onSelect: async (modelId, baseUrl) => {
@@ -226,15 +282,41 @@ function initApp(el) {
 			}
 			await appSettings.update(patch, false);
 		},
+		getActiveMode: () => getPowerMode(appSettings.value.aiPowerMode).id,
+		onSelectMode: async (modeId) => {
+			const from = appSettings.value.aiPowerMode;
+			await appSettings.update({ aiPowerMode: modeId }, false);
+			toast(describePowerModeChange(from, modeId));
+		},
 	});
 	switcherApi = switcher;
 
+	const $brand = <span className="ai-brand-logo" aria-hidden="true"></span>;
+	$brand.append(createIcon("brain", 26));
+	const $gear = <span className="ai-gear-slot"></span>;
+	$gear.append(createIcon("gear", 18));
 	el.content = (
 		<div className="header">
 			<div className="title">
-				<span>Acodex AI</span>
+				{$brand}
+				<span className="ai-brand-text">
+					<span className="ai-brand-name">Acodex AI</span>
+					<span className="ai-brand-status">
+						<i className="ai-home-dot" />
+						Online
+					</span>
+				</span>
 				{switcher.$toggle}
 				<span className="actions">
+					<button
+						type="button"
+						className="icon-button ai-fullscreen-toggle"
+						title="Tela cheia"
+						aria-label="Abrir em tela cheia"
+						onclick={toggleFullscreen}
+					>
+						<span className="icon fullscreen" />
+					</button>
 					<button
 						type="button"
 						className="icon-button"
@@ -251,7 +333,7 @@ function initApp(el) {
 						aria-label="Configurações do Acodex AI"
 						onclick={openSettings}
 					>
-						<span className="icon edit" />
+						{$gear}
 					</button>
 				</span>
 			</div>
@@ -259,49 +341,164 @@ function initApp(el) {
 	);
 	$hints = <div className="ai-hints"></div>;
 
-	imageInput = createImageInput({ onChange: updateSendState });
+	imageInput = createImageInput({
+		onChange: updateSendState,
+		beforePick: async () => {
+			await ensureDevicePermission("media", globalThis.system);
+			await ensureDevicePermission("camera", globalThis.system);
+		},
+	});
 	$attachBtn = imageInput.$btn;
 
+	$counter = <span className="ai-counter">0/{MAX_INPUT}</span>;
+	$composerProvider = <span className="ai-composer-provider"></span>;
+	$composerProvider.append(createIcon("sparkle", 14));
+	$composerProviderName = <span></span>;
+	$composerProvider.append($composerProviderName);
+	updateComposerProvider();
+
+	const isNimEndpoint = () => {
+		try {
+			return (
+				new URL(getConfig().baseUrl).hostname === "integrate.api.nvidia.com"
+			);
+		} catch {
+			return false;
+		}
+	};
+	tokenMeter = createTokenMeter({
+		rpmLimit: isNimEndpoint() ? 40 : null,
+	});
+	const meterView = createTokenMeterView(tokenMeter);
+	meterView.$el.addEventListener("click", () => meterView.update());
+	tokenMeterView = meterView;
+	el.querySelector(".ai-composer-bottom")?.append(meterView.$el);
+
+	function toggleFullscreen() {
+		const active = el.classList.toggle("ai-fullscreen");
+		document.documentElement.classList.toggle("ai-chat-fullscreen", active);
+		const $btn = el.querySelector(".ai-fullscreen-toggle .icon");
+		if ($btn)
+			$btn.className = `icon ${active ? "fullscreen_exit" : "fullscreen"}`;
+		$input.focus();
+	}
+	const $tools = <span className="ai-composer-tools"></span>;
+	$tools.append(imageInput.$btn);
+	const $adjust = (
+		<button
+			type="button"
+			className="ai-send ai-attach ai-adjust"
+			aria-label="Trocar modelo"
+			title="Trocar modelo"
+			onclick={() => switcher.open()}
+		></button>
+	);
+	$adjust.append(createIcon("sliders", 16));
+	$tools.append($adjust);
+	if ($micBtn) $tools.append($micBtn);
 	el.append(
 		$messages,
 		<div className="ai-composer">
 			{imageInput.$chip}
 			{$hints}
+			<div className="ai-composer-top">{$tools}</div>
 			{$input}
-			{imageInput.$btn}
-			{$micBtn ? $micBtn : null}
+			<div className="ai-composer-bottom">
+				{$counter}
+				{$composerProvider}
+			</div>
 			{$sendBtn}
 		</div>,
 	);
 	if ($voiceHint) el.append($voiceHint);
 	el.append(imageInput.$fileInput);
 	void initSkills();
+	void syncMcpTools();
 	renderEmptyState();
 }
 
 function renderEmptyState() {
-	const $empty = (
-		<div className="ai-empty">
-			<span className="icon brain" />
-			<strong>Assistente do editor</strong>
-			<p>
-				Lê e edita os arquivos abertos, executa comandos do app e mostra cada
-				ação em um log detalhado.
-			</p>
-		</div>
-	);
-	for (const text of SUGGESTIONS) {
-		$empty.append(
-			<button
-				type="button"
-				className="ai-suggestion"
-				onclick={() => send(text)}
-			>
-				{text}
-			</button>,
-		);
+	const $home = createAiHome({
+		getContext: () => ({
+			activeFile: editorManager.activeFile,
+			openFilesCount: editorManager.files?.length ?? 0,
+			selectionLength: getSelectionLength(),
+			model: appSettings.value.aiModel,
+		}),
+		onAction: (prompt) => send(prompt),
+		onSuggestion: (text) => send(text),
+		getProvider: () => ({
+			label: getProviderLabel(),
+			model: getConfig().model,
+			mcpCount: mcpToolNames.length,
+		}),
+		onProviderClick: () => switcherApi?.open(),
+		onShortcut: (id) => onShortcut(id),
+		onSettings: openSettings,
+	}).el;
+	$messages.replaceChildren($home);
+}
+
+/**
+ * Atalhos da faixa inferior da tela inicial.
+ * @param {string} id
+ */
+function onShortcut(id) {
+	if (id === "models") {
+		switcherApi?.open();
+	} else if (id === "plugins") {
+		void commands.open("plugins");
+	} else if (id === "projects") {
+		void commands["open-folder"]();
+	} else if (id === "agents") {
+		send("/ajuda");
 	}
-	$messages.replaceChildren($empty);
+}
+
+/**
+ * Sincroniza as tools MCP configuradas com o registry.
+ * Reconecta quando a URL muda e remove tools de sessões anteriores.
+ */
+async function syncMcpTools() {
+	for (const name of mcpToolNames) registry.removeTool(name);
+	mcpToolNames = [];
+	mcpClient = null;
+	const url = appSettings.value.aiMcpUrl?.trim();
+	if (!url) return;
+	try {
+		mcpClient = createMcpClient({ url, name: "acodex" });
+		await mcpClient.initialize();
+		const tools = await mcpClient.listTools();
+		for (const tool of tools) {
+			const safe = tool.name.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 64);
+			const local = `mcp__${safe}`;
+			if (registry.definitions.some((d) => d.function.name === local)) {
+				continue;
+			}
+			registry.registerTool(local, {
+				description: `[MCP] ${tool.description}`.slice(0, 1024),
+				parameters: tool.parameters,
+				run: (args) => mcpClient.callTool(tool.name, args),
+			});
+			mcpToolNames.push(local);
+		}
+		if (mcpToolNames.length) {
+			toast(`${mcpToolNames.length} ferramentas MCP conectadas`);
+		} else {
+			toast("Servidor MCP conectado, nenhuma tool publicada");
+		}
+	} catch (error) {
+		mcpClient = null;
+		toast(`MCP: ${error?.message || error}`);
+	}
+}
+
+function getSelectionLength() {
+	const editor =
+		editorManager.activeFile?.type === "editor" ? editorManager.editor : null;
+	const { from, to } = editor?.state?.selection?.main ?? {};
+	if (from === undefined) return 0;
+	return to - from;
 }
 
 /**
@@ -538,10 +735,15 @@ function onVoiceStateChange(state, message) {
 	}
 }
 
-function onMicClick() {
+async function onMicClick() {
 	if (!voiceInput) return;
 	if (voiceInput.isListening()) {
 		voiceInput.stop();
+		return;
+	}
+	const allowed = await ensureDevicePermission("microphone", globalThis.system);
+	if (!allowed) {
+		window.toast?.("Permita o microfone para usar o ditado", 3000);
 		return;
 	}
 	$input.focus();
@@ -662,16 +864,29 @@ async function send(rawText) {
 	imageInput?.clear();
 	updateSendState();
 
-	const log = createActivityLog();
-	$messages.append(log.$el);
-	const prepStep = log.addStep("Preparando contexto do editor", {
-		kind: "think",
-		command: buildSystemContext() || undefined,
+	lastSentText = text;
+	const bus = createTraceBus();
+	const tracer = createAgentTracer(bus, {
+		labels: TOOL_LABELS,
+		fileTools: FILE_CHANGE_TOOLS,
 	});
-	prepStep.done(undefined, 0);
-	log.setStatus("Consultando o modelo");
-	/** @type {Map<string, ReturnType<typeof log.addStep>>} */
-	const runningSteps = new Map();
+	const panel = createAgentActivity(bus, {
+		onCancel: () => controller?.abort(),
+		onRetry: () => send(lastSentText),
+	});
+	$messages.append(panel.$el);
+	tracer.start(text.length > 80 ? `${text.slice(0, 80)}…` : text);
+	// etapa real: montar o contexto do editor enviado no prompt do sistema
+	const contextStartedAt = Date.now();
+	const powerMode = getPowerMode(appSettings.value.aiPowerMode);
+	const systemContext = [buildSystemContext(), powerMode.nudge]
+		.filter(Boolean)
+		.join("\n\n");
+	tracer.progress("context", "Preparando contexto do editor", "done", {
+		duration_ms: Date.now() - contextStartedAt,
+		metadata: { kind: "context", command: systemContext || undefined },
+	});
+	tracer.beginModel();
 
 	controller = new AbortController();
 	setBusy(true);
@@ -692,39 +907,31 @@ async function send(rawText) {
 		}
 	}
 
+	tokenMeter?.begin(text.length);
 	try {
 		await runAgent({
 			history,
 			config,
 			registry,
 			signal: controller.signal,
-			systemContext: buildSystemContext(),
+			systemContext,
 			skillCatalog,
+			complete: powerMode.maxTokens
+				? (params) =>
+						createChatCompletion({
+							...params,
+							max_tokens: powerMode.maxTokens,
+						})
+				: undefined,
 			onEvent(event) {
-				if (event.type === "tool-start") {
-					const isSkill =
-						event.name === "list_skills" || event.name === "load_skill";
-					runningSteps.set(
-						event.id,
-						log.addStep(TOOL_LABELS[event.name] || event.name, {
-							kind: isSkill ? "skill" : "tool",
-							command: { tool: event.name, args: event.args },
-							detail: event.name,
-						}),
-					);
-					log.setStatus(TOOL_LABELS[event.name] || event.name);
-				} else if (event.type === "tool") {
-					const step = runningSteps.get(event.id);
-					runningSteps.delete(event.id);
-					if (event.result?.error) {
-						step?.fail(event.result.error, event.ms);
-					} else {
-						step?.done(event.result, event.ms);
-					}
-					log.setStatus("Processando resultado");
+				// toda atividade do agente vira evento tipado no bus (nada simulado)
+				tracer.handleAgentEvent(event);
+				if (event.type === "tool") {
+					// o agente volta a consultar o modelo depois de cada ferramenta
+					tracer.beginModel("Analisando resultado da ferramenta");
 				} else if (event.type === "assistant-delta") {
-					log.setStatus("Escrevendo resposta");
 					liveBuffer += event.text;
+					tokenMeter?.trackOutput(event.text.length);
 					renderLive();
 				} else if (event.content !== undefined) {
 					$liveMsg?.remove();
@@ -737,19 +944,20 @@ async function send(rawText) {
 		history = history.slice(0, snapshot - 1);
 		failed = error?.name !== "AbortError";
 		if (failed) {
-			log
-				.addStep("Erro na requisição", { kind: "error", detail: "falhou" })
-				.fail(String(error?.message || error));
+			tracer.end("failed", String(error?.message || error));
 			appendMessage("error", `Erro: ${error?.message || error}`);
-		} else if (liveBuffer) {
-			appendMessage("assistant", liveBuffer, true);
+		} else {
+			tracer.end("cancelled");
+			if (liveBuffer) appendMessage("assistant", liveBuffer, true);
 		}
 	} finally {
-		log.finish({ error: failed });
+		// só conclui se nenhum erro/cancelamento já encerrou a tarefa
+		tracer.end("done");
 		$liveMsg?.classList.remove("ai-live");
 		$liveMsg = null;
 		controller = null;
 		setBusy(false);
+		tokenMeterView?.update();
 	}
 }
 
@@ -786,6 +994,20 @@ async function openSettings() {
 					value: current.apiKey,
 					sensitive: true,
 				},
+				{
+					id: "mcpUrl",
+					type: "url",
+					placeholder: "Servidor MCP (opcional, ex: https://host/mcp)",
+					value: appSettings.value.aiMcpUrl,
+					required: false,
+				},
+				{
+					id: "vesperApiKey",
+					type: "password",
+					placeholder: "API key do agente Vesper (opcional)",
+					value: appSettings.value.aiVesperApiKey,
+					sensitive: true,
+				},
 			],
 			"Funciona com Vercel AI Gateway, OpenAI, OpenRouter, Groq ou qualquer API compatível com OpenAI. A chave fica salva apenas neste dispositivo.",
 		);
@@ -794,9 +1016,12 @@ async function openSettings() {
 				aiBaseUrl: result.baseUrl.trim(),
 				aiModel: result.model.trim(),
 				aiApiKey: result.apiKey.trim(),
+				aiMcpUrl: (result.mcpUrl || "").trim(),
+				aiVesperApiKey: (result.vesperApiKey || "").trim(),
 			},
 			false,
 		);
+		await syncMcpTools();
 	} catch {
 		// Dialog dismissed.
 	}

@@ -1,14 +1,14 @@
 <?xml version='1.0' encoding='utf-8'?>
-<widget id="com.foxdebug.acode" android-versionCode="1011" version="1.13.5"
+<widget id="com.acodex.editor" android-versionCode="1011" version="1.13.5"
     xmlns="http://www.w3.org/ns/widgets"
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:cdv="http://cordova.apache.org/ns/1.0">
-    <name>Acodex</name>
+    <name>AcodeX</name>
     <description>
-        Light weight code editor and web IDE for android.
+        AcodeX — light weight code editor and web IDE for Android, fork of Acode with the built-in AcodeX IA module (AI coding agents and critical command guard).
     </description>
-    <author email="ajit@foxdebug.com" href="https://foxdebug.com">
-        Foxdebug
+    <author email="acodex@rlkbiloga-coder" href="https://github.com/rlkbiloga-coder/acodex">
+        AcodeX
     </author>
     <content src="index.html" />
     <access launch-external="yes" origin="*" />
@@ -31,7 +31,7 @@
         <preference name="BackgroundColor" value="0xFF313131" />
         <preference name="AndroidWindowSplashScreenBackground" value="@color/ic_splash_background" />
         <preference name="AndroidWindowSplashScreenAnimatedIcon"
-            value="res/android/drawable/ic_launcher_foreground.xml" />
+            value="res/android/drawable/ic_acodex_ai_splash.xml" />
         <preference name="AndroidPostSplashScreenTheme" value="@style/Theme.App.Activity" />
         <preference name="AndroidPersistentFileLocation" value="Compatibility" />
         <preference name="AndroidLaunchMode" value="singleTask" />
@@ -321,10 +321,18 @@
         </config-file>
 
         <config-file target="AndroidManifest.xml" parent="/manifest">
-            <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
-            <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-            <uses-permission android:name="android.permission.WRITE_MEDIA_STORAGE" />
+            <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+            <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" />
+            <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
             <uses-permission android:name="android.permission.VIBRATE" />
+            <uses-permission android:name="android.permission.RECORD_AUDIO" />
+            <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+            <uses-permission android:name="android.permission.CAMERA" />
+            <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+            <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+            <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+            <uses-feature android:name="android.hardware.camera" android:required="false" />
+            <uses-feature android:name="android.hardware.microphone" android:required="false" />
         </config-file>
 
         <hook type="before_prepare" src="hooks/restore-cordova-resources.js" />

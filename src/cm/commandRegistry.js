@@ -528,6 +528,7 @@ function registerCoreCommands() {
 	addCommand({
 		name: "openCommandPalette",
 		description: "Open command palette",
+		key: "Ctrl-K",
 		readOnly: true,
 		requiresView: false,
 		run() {
@@ -657,6 +658,17 @@ function registerCoreCommands() {
 		requiresView: false,
 		run() {
 			acode.exec("new-terminal");
+			return true;
+		},
+	});
+	addCommand({
+		// AcodeX IA (c) 2026 mlk010173 — AcodeX IA License, see LICENSE-ACODEX-IA.
+		name: "acodexIA:launchAgent",
+		description: "AcodeX IA: Launch AI Agent",
+		readOnly: true,
+		requiresView: false,
+		run() {
+			acode.exec("acodex-ai");
 			return true;
 		},
 	});

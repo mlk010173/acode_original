@@ -25,6 +25,8 @@ import editorSettings from "./editorSettings";
 import filesSettings from "./filesSettings";
 import formatterSettings from "./formatterSettings";
 import lspSettings from "./lspSettings";
+import mcpSettings from "./mcpSettings";
+import permissionsSettings from "./permissionsSettings";
 import previewSettings from "./previewSettings";
 import scrollSettings from "./scrollSettings";
 import searchSettings from "./searchSettings";
@@ -128,6 +130,22 @@ export default function mainSettings() {
 			icon: "zap",
 			info: strings["settings-info-main-lsp-settings"],
 			category: categories.tools,
+			chevron: true,
+		},
+		{
+			key: "mcp-servers",
+			text: "Servidores MCP",
+			icon: "terminal",
+			info: "Ferramentas externas para o Acodex AI (protocolo aberto)",
+			category: categories.tools,
+			chevron: true,
+		},
+		{
+			key: "device-permissions",
+			text: "Permissões do dispositivo",
+			icon: "httpslock",
+			info: "Microfone, câmera, fotos e notificações",
+			category: categories.core,
 			chevron: true,
 		},
 		{
@@ -255,6 +273,14 @@ export default function mainSettings() {
 			case "terminal-settings":
 			case "lsp-settings":
 				appSettings.uiSettings[key].show();
+				break;
+
+			case "device-permissions":
+				permissionsSettings();
+				break;
+
+			case "mcp-servers":
+				mcpSettings();
 				break;
 
 			case "theme":

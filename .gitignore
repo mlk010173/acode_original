@@ -30,3 +30,12 @@ tsconfig.tsbuildinfo
 !.env.example
 *.local.json
 secrets/
+
+# AcodeX signing keys — never commit
+/acodex.keystore
+*.keystore
+*.jks
+signing.properties
+
+# Python wheels — nunca commitar (instale com pip/uv)
+*.whl

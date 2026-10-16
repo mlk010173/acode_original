@@ -13,7 +13,7 @@ const docProvider = path.resolve(
 
 const repeatChar = (char, times) => char.repeat(times);
 
-function replaceImport(filePath, appName) {
+function replaceImport(filePath, appPackage) {
   if (!fs.existsSync(filePath)) {
     console.warn(`⚠ File not found: ${filePath}`);
     return;
@@ -22,8 +22,8 @@ function replaceImport(filePath, appName) {
   const data = fs.readFileSync(filePath, "utf8");
 
   const updated = data.replace(
-    /(import\s+com\.foxdebug\.)(acode|acodefree)(\.R;)/,
-    `$1${appName}$3`
+    /import\s+com\.[0-9a-zA-Z.]+\.R;/,
+    `import ${appPackage}.R;`
   );
 
   fs.writeFileSync(filePath, updated);
@@ -42,11 +42,12 @@ try {
   }
 
   const appName = match[1].split(".").pop();
+  const appPackage = match[1];
 
-  replaceImport(docProvider, appName);
-  replaceImport(menuJava, appName);
+  replaceImport(docProvider, appPackage);
+  replaceImport(menuJava, appPackage);
 
-  const msg = `==== Changed package to com.foxdebug.${appName} ====`;
+  const msg = `==== Changed R import to ${appPackage}.R ====`;
 
   console.log("\n" + repeatChar("=", msg.length));
   console.log(msg);

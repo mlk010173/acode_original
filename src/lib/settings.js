@@ -204,6 +204,9 @@ class Settings {
 			aiBaseUrl: "https://ai-gateway.vercel.sh/v1",
 			aiApiKey: "",
 			aiModel: "openai/gpt-5-mini",
+			aiMcpUrl: "",
+			aiPowerMode: "low",
+			aiVesperApiKey: "",
 			aiGhostText: false,
 			aiCommandsEnabled: true,
 			showAnnotations: false,
@@ -233,7 +236,7 @@ class Settings {
 		if (this.#initialized) return;
 		this.settingsFile = Url.join(DATA_STORAGE, "settings.json");
 
-		this.#defaultSettings.appTheme = "system";
+		this.#defaultSettings.appTheme = "acodex";
 		this.#defaultSettings.editorTheme = getSystemEditorTheme(
 			isDeviceDarkTheme(),
 		);
